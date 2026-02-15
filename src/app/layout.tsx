@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VibeBoard",
-  description: "Real-time status board",
+  title: "Bad Day — 나쁜 하루도 괜찮아",
+  description:
+    "일기를 쓰면 AI가 감정을 분석하고, 당신에게 어울리는 음악과 따뜻한 메시지를 전해드려요.",
 };
 
 export default function RootLayout({
