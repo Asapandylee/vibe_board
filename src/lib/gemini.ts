@@ -28,7 +28,7 @@ const QUICK_ANALYSIS_PROMPT = `당신은 공감 능력이 뛰어난 AI 상담사
 {
   "emotion": "감정 카테고리 (joy | sadness | anger | anxiety | peace | excitement | gratitude 중 하나)",
   "emotion_score": 0.0~1.0 사이의 감정 강도,
-  "music_keyword": "감정에 어울리는 음악 검색 키워드 (영어, 2~3단어)"
+  "music_keyword": "유튜브에서 검색할 음악 키워드 (영어, 아티스트명+분위기 또는 장르, 2~4단어)"
 }
 
 규칙:
