@@ -23,7 +23,7 @@ export async function createDiary(content: string) {
       return { success: false, error: "1~2000자 사이로 입력해주세요." };
     }
 
-    // 1. AI 감정 분석
+    // 1. AI 감정 분석 (빠른 분석 — ai_message는 스트리밍으로 별도 처리)
     const analysis = await analyzeDiary(trimmedContent);
 
     // 2. 음악 검색
@@ -45,7 +45,7 @@ export async function createDiary(content: string) {
         content: trimmedContent,
         emotion: analysis.emotion,
         emotion_score: analysis.emotion_score,
-        ai_message: analysis.ai_message,
+        ai_message: null, // 스트리밍 완료 후 저장됨
         music_keyword: analysis.music_keyword,
         music_url: track?.url || null,
         music_title: track?.title || null,

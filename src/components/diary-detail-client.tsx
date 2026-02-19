@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Trash2, Calendar, Clock } from "lucide-react";
+import { Trash2, Calendar, Clock, Send, Loader2 } from "lucide-react";
 import type { DiaryEntry } from "@/lib/supabase/types";
 import { EMOTION_MAP } from "@/lib/supabase/types";
 import { MusicPlayer } from "./music-player";
 import { deleteDiary } from "@/app/actions";
+
+type ChatMessage = { role: "user" | "ai"; content: string };
 
 type Props = {
   entry: DiaryEntry;
@@ -18,8 +20,14 @@ export function DiaryDetailClient({ entry }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isChatStreaming, setIsChatStreaming] = useState(false);
+
   const emotionInfo = entry.emotion ? EMOTION_MAP[entry.emotion] : null;
   const date = new Date(entry.created_at);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   function handleDelete() {
     setDeleteError(null);
@@ -32,6 +40,62 @@ export function DiaryDetailClient({ entry }: Props) {
         setShowConfirm(false);
       }
     });
+  }
+
+  async function handleSend() {
+    if (!inputValue.trim() || isChatStreaming) return;
+
+    const userMessage = inputValue.trim();
+    setInputValue("");
+
+    const newMessages: ChatMessage[] = [
+      ...chatMessages,
+      { role: "user", content: userMessage },
+    ];
+    setChatMessages(newMessages);
+    setIsChatStreaming(true);
+
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          diaryId: entry.id,
+          firstAiMessage: entry.ai_message ?? "",
+          messages: newMessages,
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Chat failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      setChatMessages((prev) => [...prev, { role: "ai", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        setChatMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "ai",
+            content: updated[updated.length - 1].content + text,
+          };
+          return updated;
+        });
+      }
+
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "ai", content: "죄송해요, 잠시 오류가 발생했어요." },
+      ]);
+    } finally {
+      setIsChatStreaming(false);
+    }
   }
 
   return (
@@ -59,9 +123,7 @@ export function DiaryDetailClient({ entry }: Props) {
         <div className="flex items-center gap-3">
           <span className="text-4xl">{emotionInfo.emoji}</span>
           <div>
-            <span className="text-lg font-bold text-white">
-              {emotionInfo.label}
-            </span>
+            <span className="text-lg font-bold text-white">{emotionInfo.label}</span>
             {entry.emotion_score && (
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
@@ -98,13 +160,9 @@ export function DiaryDetailClient({ entry }: Props) {
         >
           <div className="flex items-center gap-2 mb-3">
             <span className="text-sm">✨</span>
-            <span className="text-sm font-medium text-indigo-400">
-              AI의 한마디
-            </span>
+            <span className="text-sm font-medium text-indigo-400">AI의 한마디</span>
           </div>
-          <p className="text-zinc-300 leading-relaxed text-[15px]">
-            {entry.ai_message}
-          </p>
+          <p className="text-zinc-300 leading-relaxed text-[15px]">{entry.ai_message}</p>
         </motion.div>
       )}
 
@@ -116,6 +174,60 @@ export function DiaryDetailClient({ entry }: Props) {
           emotion={entry.emotion}
         />
       )}
+
+      {/* 채팅 */}
+      <div className="p-5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 space-y-3">
+        <p className="text-xs text-zinc-500">AI에게 더 이야기해보세요</p>
+
+        {chatMessages.length > 0 && (
+          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[80%] px-3.5 py-2.5 rounded-xl text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-indigo-500/20 text-indigo-100 rounded-br-sm"
+                      : "bg-zinc-800/70 text-zinc-300 rounded-bl-sm"
+                  }`}
+                >
+                  {msg.content}
+                  {isChatStreaming &&
+                    i === chatMessages.length - 1 &&
+                    msg.role === "ai" && (
+                      <span className="inline-block w-0.5 h-3.5 bg-zinc-400 ml-0.5 align-middle animate-pulse" />
+                    )}
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            placeholder="AI에게 물어보세요..."
+            disabled={isChatStreaming}
+            className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-indigo-500/50 transition-colors disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!inputValue.trim() || isChatStreaming}
+            className="p-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-indigo-400"
+          >
+            {isChatStreaming ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Delete error */}
       {deleteError && (
