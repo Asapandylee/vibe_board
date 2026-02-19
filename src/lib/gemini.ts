@@ -83,10 +83,14 @@ export async function* streamAiMessage(
 ): AsyncGenerator<string> {
   const model = genAI.getGenerativeModel({ model: MODEL });
 
-  const systemPrompt = `당신은 공감 능력이 뛰어난 AI 상담사입니다.
-사용자의 일기를 읽고 따뜻하고 진심 어린 위로/응원 메시지를 작성해주세요.
-2~3문장으로, 공감적이고 따뜻한 톤으로, 사용자의 구체적인 상황에 맞춰 한국어로 작성하세요.
-메시지만 출력하고 다른 설명은 포함하지 마세요.${buildPastContext(pastDiaries)}`;
+  const systemPrompt = `당신은 10년 경력의 임상심리사입니다. 사용자의 일기를 읽고 심리적으로 깊이 있는 피드백을 제공합니다.
+
+다음 원칙에 따라 응답하세요:
+- 사용자의 감정을 먼저 구체적으로 인정하고 공감합니다
+- 그 감정이 갖는 심리적 의미나 맥락에 대한 통찰을 제공합니다
+- 자기이해나 성장을 돕는 질문 또는 제안으로 마무리합니다
+- 3~4문장, 전문적이되 따뜻하고 친근한 한국어로 작성합니다
+- 메시지만 출력하고 다른 설명은 포함하지 마세요${buildPastContext(pastDiaries)}`;
 
   const result = await model.generateContentStream([
     { text: systemPrompt },
@@ -109,13 +113,16 @@ export async function* streamChatReply(
 ): AsyncGenerator<string> {
   const model = genAI.getGenerativeModel({ model: MODEL });
 
-  const systemContext = `당신은 공감 능력이 뛰어난 AI 상담사입니다.
-사용자의 일기를 바탕으로 대화를 이어가고 있습니다.
+  const systemContext = `당신은 10년 경력의 임상심리사입니다. 사용자의 일기를 바탕으로 상담 대화를 이어가고 있습니다.
 
 일기 내용 (감정: ${emotion ?? "알 수 없음"}):
 ${diaryContent}${buildPastContext(pastDiaries)}
 
-짧고 공감적인 답변을 한국어로 작성하세요. 2~3문장이면 충분합니다.`;
+대화 원칙:
+- 사용자의 이야기를 경청하고 심리적으로 공감합니다
+- 필요할 때 통찰이나 새로운 관점을 제시합니다
+- 자기탐색을 돕는 질문을 자연스럽게 사용합니다
+- 2~3문장, 전문적이되 따뜻한 한국어로 작성합니다`;
 
   const history: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [
     { role: "user", parts: [{ text: systemContext }] },

@@ -38,14 +38,14 @@ const EMOTION_MUSIC: Record<Emotion, YoutubeTrack[]> = {
   anxiety: [
     { id: "UfcAVejslrU", title: "Weightless – Marconi Union" },
     { id: "77ZozI0rw7w", title: "Breathe – Pink Floyd" },
-    { id: "jfKfPfyJRdk", title: "Lofi Hip Hop Radio – Beats to Relax" },
-    { id: "5qap5aO4i9A", title: "Lofi Hip Hop – Chill Beats to Study" },
+    { id: "ghPcYqn0p4Y", title: "Breathe Me – Sia" },
+    { id: "7wfYIMyS_dI", title: "Only Time – Enya" },
   ],
   peace: [
     { id: "CgyJV_UVHWA", title: "Comptine d'un autre été – Yann Tiersen" },
     { id: "Bvnkt9BbAGE", title: "Clair de Lune – Debussy" },
-    { id: "jfKfPfyJRdk", title: "Lofi Hip Hop Radio – Study / Relax" },
-    { id: "2OEL4P1Rz04", title: "Peaceful Piano – Relaxing Music" },
+    { id: "7maJOI3QMu0", title: "River Flows in You – Yiruma" },
+    { id: "imGaOIm5HOk", title: "Kiss the Rain – Yiruma" },
   ],
   excitement: [
     { id: "HgzGwKwLmgM", title: "Don't Stop Me Now – Queen" },
