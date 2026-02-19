@@ -12,15 +12,11 @@ import type { DiaryEntry, Emotion } from "@/lib/supabase/types";
 // ─────────────────────────────────────────────
 export async function createDiary(content: string) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return { success: false, error: "로그인이 필요합니다." };
-    }
-
     const user = await currentUser();
     if (!user) {
-      return { success: false, error: "사용자 정보를 찾을 수 없습니다." };
+      return { success: false, error: "로그인이 필요합니다." };
     }
+    const userId = user.id;
 
     const trimmedContent = content.trim();
     if (!trimmedContent || trimmedContent.length > 2000) {
@@ -190,31 +186,35 @@ export async function getEmotionStats(): Promise<{
 
     const supabase = await createClient();
 
-    // 모든 일기 (감정 통계용)
-    const { data, error } = await supabase
-      .from("diary_entries")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    // 감정 집계용: emotion 컬럼만 조회 (전체 데이터 전송 최소화)
+    const [emotionRes, recentRes] = await Promise.all([
+      supabase
+        .from("diary_entries")
+        .select("emotion")
+        .eq("user_id", userId),
+      supabase
+        .from("diary_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(30),
+    ]);
 
-    if (error || !data) {
+    if (emotionRes.error || !emotionRes.data) {
       return { total: 0, byEmotion: {}, recentEntries: [] };
     }
 
-    const entries = data as DiaryEntry[];
-
-    // 감정별 카운트
     const byEmotion: Record<string, number> = {};
-    for (const entry of entries) {
-      if (entry.emotion) {
-        byEmotion[entry.emotion] = (byEmotion[entry.emotion] || 0) + 1;
+    for (const row of emotionRes.data) {
+      if (row.emotion) {
+        byEmotion[row.emotion] = (byEmotion[row.emotion] || 0) + 1;
       }
     }
 
     return {
-      total: entries.length,
+      total: emotionRes.data.length,
       byEmotion,
-      recentEntries: entries.slice(0, 30),
+      recentEntries: (recentRes.data as DiaryEntry[]) ?? [],
     };
   } catch (error) {
     console.error("getEmotionStats error:", error);

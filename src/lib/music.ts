@@ -66,14 +66,12 @@ const EMOTION_MUSIC: Record<Emotion, YoutubeTrack[]> = {
  * keyword를 seed로 활용해 동일 감정 내에서도 다양한 곡 제공
  */
 export async function searchMusic(
-  keyword: string,
+  _keyword: string,
   emotion: Emotion,
 ): Promise<MusicTrack | null> {
   const tracks = EMOTION_MUSIC[emotion] ?? EMOTION_MUSIC.peace;
 
-  // keyword 문자열을 단순 해시로 변환 → 재생 목록에서 랜덤 선택
-  const hash = keyword.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const track = tracks[hash % tracks.length];
+  const track = tracks[Math.floor(Math.random() * tracks.length)];
 
   return {
     title: track.title,

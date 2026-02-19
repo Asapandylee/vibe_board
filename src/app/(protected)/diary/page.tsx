@@ -4,8 +4,6 @@ import { auth } from "@clerk/nextjs/server";
 import { getDiaries } from "@/app/actions";
 import { AppHeader } from "@/components/app-header";
 import { DiaryTimelineItem } from "@/components/diary-timeline-item";
-import { EMOTION_MAP } from "@/lib/supabase/types";
-import type { Emotion } from "@/lib/supabase/types";
 import { PenLine } from "lucide-react";
 
 export default async function DiaryListPage() {

@@ -17,14 +17,19 @@ export function DiaryDetailClient({ entry }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const emotionInfo = entry.emotion ? EMOTION_MAP[entry.emotion] : null;
   const date = new Date(entry.created_at);
 
   function handleDelete() {
+    setDeleteError(null);
     startTransition(async () => {
       const res = await deleteDiary(entry.id);
       if (res.success) {
         router.push("/diary");
+      } else {
+        setDeleteError(res.error || "삭제에 실패했습니다.");
+        setShowConfirm(false);
       }
     });
   }
@@ -110,6 +115,13 @@ export function DiaryDetailClient({ entry }: Props) {
           url={entry.music_url || ""}
           emotion={entry.emotion}
         />
+      )}
+
+      {/* Delete error */}
+      {deleteError && (
+        <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          {deleteError}
+        </div>
       )}
 
       {/* Delete button */}
