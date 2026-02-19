@@ -1,117 +1,119 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Play, Pause, Volume2, VolumeX, Music } from "lucide-react";
-import type { Emotion } from "@/lib/supabase/types";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Music, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { EMOTION_MAP } from "@/lib/supabase/types";
 
 type Props = {
   title: string;
-  url: string;
+  url: string; // YouTube embed URL: https://www.youtube.com/embed/VIDEO_ID
   emotion: string | null;
 };
 
 export function MusicPlayer({ title, url, emotion }: Props) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [hasAudio, setHasAudio] = useState(!!url);
+  const [isExpanded, setIsExpanded] = useState(true);
 
-  useEffect(() => {
-    if (!url) {
-      setHasAudio(false);
-      return;
-    }
+  const emotionInfo = emotion
+    ? EMOTION_MAP[emotion as keyof typeof EMOTION_MAP]
+    : null;
 
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    audio.volume = 0.4;
-    audio.loop = true;
+  // embed URL에서 videoId 추출 → YouTube 링크 생성
+  const videoId = url ? url.match(/embed\/([^?&#]+)/)?.[1] : null;
+  const watchUrl = videoId
+    ? `https://www.youtube.com/watch?v=${videoId}`
+    : null;
 
-    audio.addEventListener("timeupdate", () => {
-      if (audio.duration) {
-        setProgress((audio.currentTime / audio.duration) * 100);
-      }
-    });
-
-    audio.addEventListener("error", () => {
-      setHasAudio(false);
-    });
-
-    audio.addEventListener("canplay", () => {
-      setHasAudio(true);
-    });
-
-    return () => {
-      audio.pause();
-      audio.src = "";
-    };
-  }, [url]);
-
-  function togglePlay() {
-    if (!audioRef.current || !hasAudio) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  }
-
-  function toggleMute() {
-    if (!audioRef.current) return;
-    audioRef.current.muted = !isMuted;
-    setIsMuted(!isMuted);
-  }
+  // 자동재생 포함 embed URL (videoId 없으면 null → iframe 미렌더링)
+  const embedUrl = videoId
+    ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`
+    : null;
 
   return (
-    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-zinc-800/40 border border-zinc-700/30">
-      <div className="flex-shrink-0">
-        {hasAudio ? (
-          <button
-            onClick={togglePlay}
-            className="w-10 h-10 rounded-full bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center transition-colors"
-          >
-            {isPlaying ? (
-              <Pause className="w-4 h-4 text-indigo-400" />
-            ) : (
-              <Play className="w-4 h-4 text-indigo-400 ml-0.5" />
-            )}
-          </button>
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-zinc-700/30 flex items-center justify-center">
-            <Music className="w-4 h-4 text-zinc-500" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-zinc-300 truncate font-medium">{title}</p>
-        {hasAudio ? (
-          <div className="mt-1.5 w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-indigo-500 rounded-full"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        ) : (
-          <p className="text-xs text-zinc-600 mt-0.5">감정에 어울리는 음악</p>
-        )}
-      </div>
-
-      {hasAudio && (
-        <button
-          onClick={toggleMute}
-          className="flex-shrink-0 p-2 rounded-lg hover:bg-zinc-700/50 transition-colors text-zinc-500 hover:text-zinc-300"
+    <div className="rounded-xl border border-zinc-700/30 bg-zinc-800/40 overflow-hidden">
+      {/* Header – 클릭으로 토글 */}
+      <button
+        onClick={() => setIsExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 p-3.5 hover:bg-zinc-700/20 transition-colors text-left"
+      >
+        {/* 아이콘 */}
+        <div
+          className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            emotionInfo
+              ? `bg-gradient-to-br ${emotionInfo.gradient} opacity-80`
+              : "bg-red-500/20"
+          }`}
         >
-          {isMuted ? (
-            <VolumeX className="w-4 h-4" />
-          ) : (
-            <Volume2 className="w-4 h-4" />
+          <Music className="w-4 h-4 text-white/90" />
+        </div>
+
+        {/* 곡 정보 */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] text-zinc-500 font-medium tracking-wide uppercase">
+            감정에 어울리는 음악
+          </p>
+          <p className="text-sm text-zinc-300 truncate font-medium mt-0.5">
+            {title}
+          </p>
+        </div>
+
+        {/* 우측 버튼들 */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {watchUrl && (
+            <a
+              href={watchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="p-1.5 rounded-lg hover:bg-zinc-600/50 transition-colors text-zinc-500 hover:text-zinc-300"
+              title="YouTube에서 열기"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           )}
-        </button>
-      )}
+          {isExpanded ? (
+            <ChevronUp className="w-4 h-4 text-zinc-500" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-zinc-500" />
+          )}
+        </div>
+      </button>
+
+      {/* YouTube iframe 영역 */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            key="player"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            <div className="px-3.5 pb-3.5">
+              {embedUrl ? (
+                <div
+                  className="relative w-full rounded-lg overflow-hidden bg-black"
+                  style={{ paddingBottom: "56.25%" /* 16:9 */ }}
+                >
+                  <iframe
+                    className="absolute top-0 left-0 w-full h-full"
+                    src={embedUrl}
+                    title={title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600 py-2">
+                  이 일기는 음악 정보가 없습니다. 새 일기를 작성하면 음악이
+                  추천됩니다.
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

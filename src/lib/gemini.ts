@@ -30,7 +30,7 @@ const SYSTEM_PROMPT = `당신은 공감 능력이 뛰어난 AI 상담사입니�
 
 export async function analyzeDiary(content: string): Promise<DiaryAnalysis> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const result = await model.generateContent([
       { text: SYSTEM_PROMPT },

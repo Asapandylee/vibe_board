@@ -13,7 +13,7 @@
 | 📝 일기 작성      | 하루를 자유롭게 기록                                     |
 | 🧠 AI 감정 분석   | Gemini API로 감정 분류 (기쁨, 슬픔, 분노, 불안, 평온 등) |
 | 💬 AI 위로 메시지 | 감정에 맞춘 개인화된 위로/응원 메시지 생성               |
-| 🎵 배경 음악 추천 | 감정 기반 로열티프리 음악 자동 재생                      |
+| 🎵 배경 음악 추천 | 감정 기반 YouTube 음악 자동 embed (API 키 불필요)        |
 | 📊 감정 대시보드  | 캘린더 히트맵으로 감정 변화 시각화                       |
 
 ## 기술 스택
@@ -36,8 +36,8 @@
 
 - **Authentication**: [Clerk](https://clerk.com)
 - **Database**: [Supabase](https://supabase.com) (PostgreSQL + RLS)
-- **AI**: [Google Gemini API](https://ai.google.dev) — 감정 분석 + 위로 메시지 생성
-- **Music**: [Pixabay Music API](https://pixabay.com/service/about/api/) — 로열티프리 음악 검색
+- **AI**: [Google Gemini API](https://ai.google.dev) (`gemini-flash-latest`) — 감정 분석 + 위로 메시지 생성
+- **Music**: YouTube Embed — 감정별 큐레이션 YouTube 영상 (API 키 불필요)
 - **State Management**: [Zustand](https://github.com/pmndrs/zustand)
 - **Data Fetching**: [TanStack Query](https://tanstack.com/query)
 
@@ -70,8 +70,8 @@ flowchart TD
     D --> E[일기 제출]
     E --> F[AI 감정 분석 - Gemini API]
     F --> G[감정 + 위로 메시지 표시]
-    F --> H[로열티프리 음악 검색]
-    H --> I[배경 음악 자동 재생]
+    F --> H[감정별 YouTube 음악 큐레이션 선택]
+    H --> I[YouTube embed 플레이어 표시]
     G --> J[DB 저장]
     J --> K[일기 목록 / 대시보드 이동]
 ```
@@ -92,9 +92,8 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-# AI & Music (추가)
+# AI
 GEMINI_API_KEY=your_gemini_api_key          # Google AI Studio에서 발급
-PIXABAY_API_KEY=your_pixabay_api_key        # Pixabay에서 발급 (선택)
 ```
 
 ### 2. Supabase 데이터베이스 설정
@@ -165,13 +164,13 @@ supabase/
 
 ## API 비용
 
-| 항목          | 비용     | 비고                  |
-| ------------- | -------- | --------------------- |
-| Gemini API    | **무료** | 15 RPM, 일 1M 토큰    |
-| Pixabay Music | **무료** | API 키 필요, 일 100회 |
-| Supabase      | **무료** | 500MB DB, 50K MAU     |
-| Clerk         | **무료** | 10K MAU               |
-| Vercel        | **무료** | Hobby 플랜            |
+| 항목       | 비용     | 비고                             |
+| ---------- | -------- | -------------------------------- |
+| Gemini API | **무료** | `gemini-flash-latest`, 무료 티어 |
+| YouTube    | **무료** | embed 방식, API 키 불필요        |
+| Supabase   | **무료** | 500MB DB, 50K MAU                |
+| Clerk      | **무료** | 10K MAU                          |
+| Vercel     | **무료** | Hobby 플랜                       |
 
 > **총 운영비: $0/월** (무료 티어 범위 내)
 
