@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Play,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Music,
+} from "lucide-react";
 import { EMOTION_MAP } from "@/lib/supabase/types";
 
 type Props = {
@@ -13,30 +19,37 @@ type Props = {
 
 export function MusicPlayer({ title, url, emotion }: Props) {
   const [isExpanded, setIsExpanded] = useState(true);
+  // 실제 클릭 전까지 iframe을 로드하지 않음 → 브라우저 autoplay 정책 우회
+  const [activated, setActivated] = useState(false);
 
   const emotionInfo = emotion
     ? EMOTION_MAP[emotion as keyof typeof EMOTION_MAP]
     : null;
 
-  // embed URL에서 videoId 추출 → YouTube 링크 생성
   const videoId = url ? url.match(/embed\/([^?&#]+)/)?.[1] : null;
   const watchUrl = videoId
     ? `https://www.youtube.com/watch?v=${videoId}`
     : null;
 
-  // 자동재생 포함 embed URL (videoId 없으면 null → iframe 미렌더링)
+  // 클릭 시 autoplay=1로 iframe 삽입 → 사용자 제스처 이후라 자동재생 허용됨
   const embedUrl = videoId
     ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`
     : null;
 
+  // 썸네일 URL (YouTube 제공)
+  const thumbnailUrl = videoId
+    ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+    : null;
+
+  const handleActivate = () => setActivated(true);
+
   return (
     <div className="rounded-xl border border-zinc-700/30 bg-zinc-800/40 overflow-hidden">
-      {/* Header – 클릭으로 토글 */}
+      {/* Header */}
       <button
         onClick={() => setIsExpanded((v) => !v)}
         className="w-full flex items-center gap-3 p-3.5 hover:bg-zinc-700/20 transition-colors text-left"
       >
-        {/* 아이콘 */}
         <div
           className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
             emotionInfo
@@ -47,7 +60,6 @@ export function MusicPlayer({ title, url, emotion }: Props) {
           <Music className="w-4 h-4 text-white/90" />
         </div>
 
-        {/* 곡 정보 */}
         <div className="flex-1 min-w-0">
           <p className="text-[11px] text-zinc-500 font-medium tracking-wide uppercase">
             감정에 어울리는 음악
@@ -57,7 +69,6 @@ export function MusicPlayer({ title, url, emotion }: Props) {
           </p>
         </div>
 
-        {/* 우측 버튼들 */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {watchUrl && (
             <a
@@ -79,7 +90,7 @@ export function MusicPlayer({ title, url, emotion }: Props) {
         </div>
       </button>
 
-      {/* YouTube iframe 영역 */}
+      {/* Player 영역 */}
       <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
@@ -92,17 +103,40 @@ export function MusicPlayer({ title, url, emotion }: Props) {
             <div className="px-3.5 pb-3.5">
               {embedUrl ? (
                 <div
-                  className="relative w-full rounded-lg overflow-hidden bg-black"
-                  style={{ paddingBottom: "56.25%" /* 16:9 */ }}
+                  className="relative w-full rounded-lg overflow-hidden bg-zinc-900"
+                  style={{ paddingBottom: "56.25%" }}
                 >
-                  <iframe
-                    className="absolute top-0 left-0 w-full h-full"
-                    src={embedUrl}
-                    title={title}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
+                  {!activated ? (
+                    /* 썸네일 + 재생 버튼 — 클릭 시 iframe 교체 */
+                    <button
+                      onClick={handleActivate}
+                      className="absolute inset-0 w-full h-full group"
+                    >
+                      {thumbnailUrl && (
+                        <img
+                          src={thumbnailUrl}
+                          alt={title}
+                          className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                        />
+                      )}
+                      {/* 재생 버튼 오버레이 */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-red-600/90 hover:bg-red-600 transition-colors flex items-center justify-center shadow-2xl">
+                          <Play className="w-7 h-7 text-white ml-1" />
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    /* 클릭 후 iframe 로드 — autoplay 허용됨 */
+                    <iframe
+                      className="absolute top-0 left-0 w-full h-full"
+                      src={embedUrl}
+                      title={title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-zinc-600 py-2">
