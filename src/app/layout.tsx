@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: "Bad Day",
     images: [
       {
-        url: "/opengraph-image.png",
+        url: "https://vibe-board-andy.vercel.app/opengraph-image.png",
         width: 1200,
         height: 630,
         alt: "Bad Day — AI 감정 일기",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     title: "Bad Day — 나쁜 하루도 괜찮아",
     description:
       "일기를 쓰면 AI가 감정을 분석하고, 당신에게 어울리는 음악과 따뜻한 메시지를 전해드려요.",
-    images: ["/opengraph-image.png"],
+    images: ["https://vibe-board-andy.vercel.app/opengraph-image.png"],
   },
 };
 

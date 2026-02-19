@@ -4,7 +4,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/api/(.*)", // Allow API routes to be public or handle auth internally
+  "/api/(.*)",
+  "/opengraph-image",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
