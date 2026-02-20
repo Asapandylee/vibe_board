@@ -36,22 +36,39 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { diaryId } = parsedBody.data;
 
-  const { data: diary, error: diaryError } = await supabase
+  const initialDiaryQuery = await supabase
     .from("diary_entries")
     .select("content, emotion, action_plan")
     .eq("id", diaryId)
     .eq("user_id", userId)
     .single();
 
+  let diary = initialDiaryQuery.data as ActionPlanDiary | null;
+  let diaryError = initialDiaryQuery.error;
+
+  // Backward compatibility: production DB may not have action_plan yet.
+  if (diaryError?.message?.includes("action_plan")) {
+    const fallbackDiaryQuery = await supabase
+      .from("diary_entries")
+      .select("content, emotion")
+      .eq("id", diaryId)
+      .eq("user_id", userId)
+      .single();
+
+    diary = fallbackDiaryQuery.data
+      ? ({ ...fallbackDiaryQuery.data, action_plan: null } as ActionPlanDiary)
+      : null;
+    diaryError = fallbackDiaryQuery.error;
+  }
+
   if (diaryError || !diary) {
     return new Response("Diary not found", { status: 404 });
   }
 
-  const typedDiary = diary as ActionPlanDiary;
-  if (typedDiary.action_plan) {
+  if (diary.action_plan) {
     return Response.json({
       diaryId,
-      plan: typedDiary.action_plan,
+      plan: diary.action_plan,
       source: "stored",
     });
   }
@@ -65,8 +82,8 @@ export async function POST(req: Request) {
     .limit(5);
 
   const plan = await generateActionPlan({
-    diaryContent: typedDiary.content,
-    emotion: typedDiary.emotion,
+    diaryContent: diary.content,
+    emotion: diary.emotion,
     pastDiaries: (pastDiaries ?? []) as PastDiary[],
   });
 
@@ -81,7 +98,7 @@ export async function POST(req: Request) {
     .eq("id", diaryId)
     .eq("user_id", userId);
 
-  if (updateError) {
+  if (updateError && !updateError.message?.includes("action_plan")) {
     console.error("action-plan save error:", updateError);
   }
 
