@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, TrendingUp, Award } from "lucide-react";
 import type { DiaryEntry, Emotion } from "@/lib/supabase/types";
@@ -16,6 +17,14 @@ type Props = {
 
 export function DashboardClient({ stats }: Props) {
   const { total, byEmotion, recentEntries } = stats;
+  const [insights, setInsights] = useState<{
+    summary: string;
+    patterns: string[];
+    triggers: string[];
+    recommendations: string[];
+  } | null>(null);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [isLoadingInsights, setIsLoadingInsights] = useState(true);
 
   // 가장 많은 감정 찾기
   const topEmotion = Object.entries(byEmotion).sort(
@@ -23,6 +32,42 @@ export function DashboardClient({ stats }: Props) {
   )[0] as [Emotion, number] | undefined;
 
   const topEmotionInfo = topEmotion ? EMOTION_MAP[topEmotion[0]] : null;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadInsights() {
+      try {
+        setIsLoadingInsights(true);
+        setInsightError(null);
+        const res = await fetch("/api/ai/insights?range=30", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("insights request failed");
+        const json = (await res.json()) as {
+          insights?: {
+            summary: string;
+            patterns: string[];
+            triggers: string[];
+            recommendations: string[];
+          };
+        };
+        if (!mounted) return;
+        setInsights(json.insights ?? null);
+      } catch {
+        if (!mounted) return;
+        setInsightError("인사이트를 불러오지 못했어요.");
+      } finally {
+        if (mounted) setIsLoadingInsights(false);
+      }
+    }
+
+    loadInsights();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -121,6 +166,50 @@ export function DashboardClient({ stats }: Props) {
       >
         <h3 className="text-sm font-medium text-zinc-400 mb-4">감정 캘린더</h3>
         <EmotionCalendar entries={recentEntries} />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.45 }}
+        className="p-5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 space-y-3"
+      >
+        <h3 className="text-sm font-medium text-zinc-400">AI 인사이트 (최근 30일)</h3>
+        {isLoadingInsights && (
+          <p className="text-sm text-zinc-500">인사이트를 분석 중입니다...</p>
+        )}
+        {insightError && (
+          <p className="text-sm text-red-400">{insightError}</p>
+        )}
+        {!isLoadingInsights && !insightError && insights && (
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-300 leading-relaxed">{insights.summary}</p>
+            {!!insights.patterns.length && (
+              <div>
+                <p className="text-xs text-zinc-500 mb-1.5">반복 패턴</p>
+                <ul className="space-y-1">
+                  {insights.patterns.map((item, idx) => (
+                    <li key={`pattern-${idx}`} className="text-sm text-zinc-400">
+                      • {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {!!insights.recommendations.length && (
+              <div>
+                <p className="text-xs text-zinc-500 mb-1.5">실행 제안</p>
+                <ul className="space-y-1">
+                  {insights.recommendations.map((item, idx) => (
+                    <li key={`recommend-${idx}`} className="text-sm text-zinc-400">
+                      • {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </motion.div>
 
       {total === 0 && (

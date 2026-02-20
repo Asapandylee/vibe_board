@@ -28,7 +28,7 @@ export function MusicPlayer({ title, url, emotion }: Props) {
     ? `https://www.youtube.com/watch?v=${videoId}`
     : null;
   const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`
+    ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1&playsinline=1`
     : null;
 
   return (
@@ -99,6 +99,7 @@ export function MusicPlayer({ title, url, emotion }: Props) {
                     src={embedUrl}
                     title={title}
                     frameBorder="0"
+                    loading="eager"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   /></div>

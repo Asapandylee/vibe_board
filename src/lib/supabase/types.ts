@@ -7,6 +7,19 @@ export type Emotion =
   | "excitement"
   | "gratitude";
 
+export type ActionPlanStep = {
+  title: string;
+  description: string;
+  durationMinutes: number;
+};
+
+export type StoredActionPlan = {
+  title: string;
+  steps: ActionPlanStep[];
+  checkInQuestion: string;
+  generated_at?: string;
+};
+
 export type DiaryEntry = {
   id: string;
   user_id: string;
@@ -18,6 +31,7 @@ export type DiaryEntry = {
   music_keyword: string | null;
   music_url: string | null;
   music_title: string | null;
+  action_plan: StoredActionPlan | null;
   created_at: string;
 };
 
@@ -78,9 +92,10 @@ export type Database = {
     Tables: {
       diary_entries: {
         Row: DiaryEntry;
-        Insert: Omit<DiaryEntry, "id" | "created_at"> & {
+        Insert: Omit<DiaryEntry, "id" | "created_at" | "action_plan"> & {
           id?: string;
           created_at?: string;
+          action_plan?: StoredActionPlan | null;
         };
         Update: Partial<DiaryEntry>;
       };

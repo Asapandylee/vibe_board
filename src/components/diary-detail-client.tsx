@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Trash2, Calendar, Clock, Send, Loader2 } from "lucide-react";
-import type { DiaryEntry } from "@/lib/supabase/types";
+import type { DiaryEntry, StoredActionPlan } from "@/lib/supabase/types";
 import { EMOTION_MAP } from "@/lib/supabase/types";
 import { MusicPlayer } from "./music-player";
 import { deleteDiary } from "@/app/actions";
@@ -13,6 +13,12 @@ type ChatMessage = { role: "user" | "ai"; content: string };
 
 type Props = {
   entry: DiaryEntry;
+};
+
+type ActionPlanResponse = {
+  diaryId: string;
+  plan: StoredActionPlan;
+  source: "stored" | "generated";
 };
 
 export function DiaryDetailClient({ entry }: Props) {
@@ -24,6 +30,11 @@ export function DiaryDetailClient({ entry }: Props) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isChatStreaming, setIsChatStreaming] = useState(false);
+  const [isPlanLoading, setIsPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlanResponse["plan"] | null>(
+    entry.action_plan ?? null,
+  );
 
   const emotionInfo = entry.emotion ? EMOTION_MAP[entry.emotion] : null;
   const date = new Date(entry.created_at);
@@ -95,6 +106,28 @@ export function DiaryDetailClient({ entry }: Props) {
       ]);
     } finally {
       setIsChatStreaming(false);
+    }
+  }
+
+  async function handleCreateActionPlan() {
+    if (isPlanLoading) return;
+    setIsPlanLoading(true);
+    setPlanError(null);
+
+    try {
+      const res = await fetch("/api/ai/action-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ diaryId: entry.id }),
+      });
+
+      if (!res.ok) throw new Error("Action plan failed");
+      const json = (await res.json()) as ActionPlanResponse;
+      setActionPlan(json.plan);
+    } catch {
+      setPlanError("액션 플랜 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsPlanLoading(false);
     }
   }
 
@@ -227,6 +260,44 @@ export function DiaryDetailClient({ entry }: Props) {
             )}
           </button>
         </div>
+      </div>
+
+      {/* Action plan */}
+      <div className="p-5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-zinc-400">AI 액션 플랜</p>
+          <button
+            onClick={handleCreateActionPlan}
+            disabled={isPlanLoading}
+            className="px-3.5 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            {isPlanLoading ? "생성 중..." : actionPlan ? "다시 생성" : "플랜 만들기"}
+          </button>
+        </div>
+
+        {planError && (
+          <p className="text-sm text-red-400">{planError}</p>
+        )}
+
+        {actionPlan && (
+          <div className="space-y-3">
+            <p className="text-base font-semibold text-white">{actionPlan.title}</p>
+            <div className="space-y-2.5">
+              {actionPlan.steps.map((step, idx) => (
+                <div
+                  key={`${step.title}-${idx}`}
+                  className="rounded-xl border border-zinc-700/50 bg-zinc-800/40 p-3"
+                >
+                  <p className="text-sm text-zinc-200 font-medium">
+                    {idx + 1}. {step.title} ({step.durationMinutes}분)
+                  </p>
+                  <p className="text-sm text-zinc-400 mt-1">{step.description}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-zinc-300">체크 질문: {actionPlan.checkInQuestion}</p>
+          </div>
+        )}
       </div>
 
       {/* Delete error */}

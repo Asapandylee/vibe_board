@@ -11,12 +11,64 @@ type YoutubeTrack = {
   title: string;
 };
 
+type RankedVideo = YoutubeTrack & {
+  score: number;
+};
+
+const OFFICIAL_TITLE_PATTERNS = [
+  "official mv",
+  "official music video",
+  "official video",
+  "official",
+  "뮤직비디오",
+  "m/v",
+  "(mv)",
+];
+
+const LOW_PRIORITY_TITLE_PATTERNS = [
+  "lyrics",
+  "lyric",
+  "audio",
+  "teaser",
+  "shorts",
+  "reaction",
+  "cover",
+  "fanmade",
+  "fan made",
+  "instrumental",
+  "karaoke",
+];
+
+function scoreVideoCandidate(input: {
+  title?: string;
+  channelName?: string;
+  isVerified?: boolean;
+}): number {
+  const title = (input.title ?? "").toLowerCase();
+  const channelName = (input.channelName ?? "").toLowerCase();
+
+  let score = 0;
+
+  for (const pattern of OFFICIAL_TITLE_PATTERNS) {
+    if (title.includes(pattern)) score += 25;
+  }
+
+  for (const pattern of LOW_PRIORITY_TITLE_PATTERNS) {
+    if (title.includes(pattern)) score -= 30;
+  }
+
+  if (channelName.includes("official")) score += 15;
+  if (input.isVerified) score += 10;
+
+  return score;
+}
+
 /**
  * YouTube 검색 페이지 파싱으로 실시간 검색 (API 키 불필요)
  */
 async function searchYouTubeVideo(keyword: string): Promise<YoutubeTrack | null> {
   try {
-    const query = encodeURIComponent(`${keyword} official`);
+    const query = encodeURIComponent(`${keyword} official mv`);
     const url = `https://www.youtube.com/results?search_query=${query}`;
 
     const res = await fetch(url, {
@@ -34,27 +86,68 @@ async function searchYouTubeVideo(keyword: string): Promise<YoutubeTrack | null>
     const raw = html.split("ytInitialData = ")[1]?.split(";</script>")[0];
     if (!raw) return null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: any = JSON.parse(raw);
+    const data = JSON.parse(raw) as {
+      contents?: {
+        twoColumnSearchResultsRenderer?: {
+          primaryContents?: {
+            sectionListRenderer?: {
+              contents?: Array<{
+                itemSectionRenderer?: {
+                  contents?: unknown[];
+                };
+              }>;
+            };
+          };
+        };
+      };
+    };
     const contents: unknown[] =
       data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
         ?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents ??
       [];
 
-    // 첫 번째 videoRenderer 결과 사용
-    const video = contents.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (c): c is { videoRenderer: any } =>
-        typeof c === "object" && c !== null && "videoRenderer" in c,
-    );
+    const ranked: RankedVideo[] = [];
 
-    if (!video?.videoRenderer) return null;
+    for (const item of contents) {
+      if (
+        typeof item !== "object" ||
+        item === null ||
+        !("videoRenderer" in item)
+      ) {
+        continue;
+      }
 
-    const vr = video.videoRenderer;
-    return {
-      id: vr.videoId as string,
-      title: (vr.title?.runs?.[0]?.text ?? keyword) as string,
-    };
+      const vr = (item as { videoRenderer: Record<string, unknown> })
+        .videoRenderer;
+      const videoId = vr.videoId;
+      if (typeof videoId !== "string" || !videoId) continue;
+
+      const titleRuns = (vr.title as { runs?: Array<{ text?: string }> })?.runs;
+      const ownerRuns = (
+        vr.ownerText as { runs?: Array<{ text?: string }> }
+      )?.runs;
+      const ownerBadges = vr.ownerBadges as Array<{
+        metadataBadgeRenderer?: { style?: string };
+      }> | undefined;
+
+      const title = titleRuns?.[0]?.text ?? keyword;
+      const channelName = ownerRuns?.[0]?.text ?? "";
+      const isVerified =
+        ownerBadges?.some((badge) =>
+          badge?.metadataBadgeRenderer?.style?.includes("VERIFIED"),
+        ) ?? false;
+
+      ranked.push({
+        id: videoId,
+        title,
+        score: scoreVideoCandidate({ title, channelName, isVerified }),
+      });
+    }
+
+    if (!ranked.length) return null;
+
+    ranked.sort((a, b) => b.score - a.score);
+    return { id: ranked[0].id, title: ranked[0].title };
   } catch {
     return null;
   }
