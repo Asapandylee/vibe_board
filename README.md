@@ -13,8 +13,9 @@
 | 📝 일기 작성      | 하루를 자유롭게 기록                                     |
 | 🧠 AI 감정 분석   | Gemini API로 감정 분류 (기쁨, 슬픔, 분노, 불안, 평온 등) |
 | 💬 AI 위로 메시지 | 감정에 맞춘 개인화된 위로/응원 메시지 생성               |
-| 🎵 배경 음악 추천 | 감정 기반 YouTube 음악 자동 embed (API 키 불필요)        |
+| 🎵 배경 음악 추천 | 감정 기반 YouTube 단곡 추천 (API 키 불필요)        |
 | 📊 감정 대시보드  | 캘린더 히트맵으로 감정 변화 시각화                       |
+| 🎙️ AI 톤 제어    | 1단계 / 2단계 반존댓말 톤 토글 지원                   |
 
 ## 기술 스택
 
@@ -36,7 +37,7 @@
 
 - **Authentication**: [Clerk](https://clerk.com)
 - **Database**: [Supabase](https://supabase.com) (PostgreSQL + RLS)
-- **AI**: [Google Gemini API](https://ai.google.dev) (`gemini-flash-latest`) — 감정 분석 + 위로 메시지 생성
+- **AI**: [Google Gemini API](https://ai.google.dev) (`gemini-2.5-flash`) — 감정 분석 + 위로 메시지 생성
 - **Music**: YouTube Embed — 감정별 큐레이션 YouTube 영상 (API 키 불필요)
 - **State Management**: [Zustand](https://github.com/pmndrs/zustand)
 - **Data Fetching**: [TanStack Query](https://tanstack.com/query)
@@ -94,7 +95,26 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # AI
 GEMINI_API_KEY=your_gemini_api_key          # Google AI Studio에서 발급
+
+# Gemini 모델 폴백(추천)
+GEMINI_MODEL_PRIMARY=gemini-2.5-flash
+GEMINI_MODEL_FALLBACK=gemini-1.5-flash
+
+# AI 톤 기본값(1: 반존댓말, 2: 캐주얼 반말)
+GEMINI_VOICE_TONE_LEVEL=2
 ```
+
+### 2-1. AI 모델 폴백 정책
+
+- `GEMINI_MODEL_PRIMARY` 실패 시 `GEMINI_MODEL_FALLBACK` → `gemini-1.5-pro` 순으로 자동 전환됩니다.
+- 키 누락 또는 API 호출 실패 시 안정적인 기본 메시지로 폴백해 대화가 중단되지 않습니다.
+
+### 2-2. 음악 추천 정책
+
+- 검색은 다중 쿼리 기반(감정 키워드 + 감정 강도 키워드)으로 수행
+- 단곡 선호: 재생목록/믹스/컴필레이션/오디오북 계열은 제외
+- `lyrics`, `cover`, `reaction`, `trailer`, `karaoke`는 감점/제외 처리
+- 최종 점수 상위 단일 트랙을 선택(플레이리스트 대체 미동작)
 
 ### 2. Supabase 데이터베이스 설정
 
@@ -166,7 +186,7 @@ supabase/
 
 | 항목       | 비용     | 비고                             |
 | ---------- | -------- | -------------------------------- |
-| Gemini API | **무료** | `gemini-flash-latest`, 무료 티어 |
+| Gemini API | **무료** | `gemini-2.5-flash` 기본, 실패 시 자동 폴백 |
 | YouTube    | **무료** | embed 방식, API 키 불필요        |
 | Supabase   | **무료** | 500MB DB, 50K MAU                |
 | Clerk      | **무료** | 10K MAU                          |

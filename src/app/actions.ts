@@ -27,7 +27,9 @@ export async function createDiary(content: string) {
     const analysis = await analyzeDiary(trimmedContent);
 
     // 2. 음악 검색
-    const track = await searchMusic(analysis.music_keyword, analysis.emotion);
+    const track = await searchMusic(analysis.music_keyword, analysis.emotion, {
+      emotionScore: analysis.emotion_score,
+    });
 
     // 3. Supabase 저장
     const supabase = await createClient();

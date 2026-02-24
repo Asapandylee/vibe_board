@@ -8,6 +8,8 @@ import type { DiaryEntry, StoredActionPlan } from "@/lib/supabase/types";
 import { EMOTION_MAP } from "@/lib/supabase/types";
 import { MusicPlayer } from "./music-player";
 import { deleteDiary } from "@/app/actions";
+import { getVoiceToneFallbackMessage, type VoiceToneLevel } from "@/lib/voice-tone";
+import { VoiceToneToggle } from "./voice-tone-toggle";
 
 type ChatMessage = { role: "user" | "ai"; content: string };
 
@@ -35,6 +37,7 @@ export function DiaryDetailClient({ entry }: Props) {
   const [actionPlan, setActionPlan] = useState<ActionPlanResponse["plan"] | null>(
     entry.action_plan ?? null,
   );
+  const [voiceTone, setVoiceTone] = useState<VoiceToneLevel>(2);
 
   const emotionInfo = entry.emotion ? EMOTION_MAP[entry.emotion] : null;
   const date = new Date(entry.created_at);
@@ -74,6 +77,7 @@ export function DiaryDetailClient({ entry }: Props) {
           diaryId: entry.id,
           firstAiMessage: entry.ai_message ?? "",
           messages: newMessages,
+          voiceTone,
         }),
       });
 
@@ -102,7 +106,7 @@ export function DiaryDetailClient({ entry }: Props) {
     } catch {
       setChatMessages((prev) => [
         ...prev,
-        { role: "ai", content: "죄송해요, 잠시 오류가 발생했어요." },
+        { role: "ai", content: getVoiceToneFallbackMessage(voiceTone, "chat") },
       ]);
     } finally {
       setIsChatStreaming(false);
@@ -118,7 +122,10 @@ export function DiaryDetailClient({ entry }: Props) {
       const res = await fetch("/api/ai/action-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ diaryId: entry.id }),
+        body: JSON.stringify({
+          diaryId: entry.id,
+          voiceTone,
+        }),
       });
 
       if (!res.ok) throw new Error("Action plan failed");
@@ -213,7 +220,7 @@ export function DiaryDetailClient({ entry }: Props) {
         <p className="text-xs text-zinc-500">AI에게 더 이야기해보세요</p>
 
         {chatMessages.length > 0 && (
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+        <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
             {chatMessages.map((msg, i) => (
               <div
                 key={i}
@@ -238,6 +245,12 @@ export function DiaryDetailClient({ entry }: Props) {
             <div ref={chatEndRef} />
           </div>
         )}
+
+        <VoiceToneToggle
+          value={voiceTone}
+          onChange={setVoiceTone}
+          disabled={isChatStreaming}
+        />
 
         <div className="flex gap-2">
           <input

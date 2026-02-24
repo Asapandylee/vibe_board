@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { streamAiMessage } from "@/lib/gemini";
+import { normalizeVoiceTone, streamAiMessage } from "@/lib/gemini";
+import { getVoiceToneFallbackMessage } from "@/lib/voice-tone";
 import type { PastDiary } from "@/lib/gemini";
 import type { Emotion } from "@/lib/supabase/types";
 
@@ -8,7 +9,13 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
-  const { diaryId } = await req.json();
+  const body = (await req.json().catch(() => null)) as
+    | { diaryId?: unknown; voiceTone?: unknown }
+    | null;
+
+  const diaryId = typeof body?.diaryId === "string" ? body.diaryId : "";
+  const voiceTone = normalizeVoiceTone(body?.voiceTone);
+
   if (!diaryId) return new Response("diaryId required", { status: 400 });
 
   const supabase = await createClient();
@@ -40,13 +47,14 @@ export async function POST(req: Request) {
           diary.content,
           diary.emotion as Emotion | null,
           (pastDiaries ?? []) as PastDiary[],
+          { voiceTone },
         )) {
           fullMessage += chunk;
           controller.enqueue(encoder.encode(chunk));
         }
       } catch (err) {
         console.error("Stream error:", err);
-        const fallback = "오늘 하루도 수고했어요. 일기를 쓰는 것만으로도 대단한 거예요. 💙";
+        const fallback = getVoiceToneFallbackMessage(voiceTone, "stream");
         fullMessage = fallback;
         controller.enqueue(encoder.encode(fallback));
       } finally {

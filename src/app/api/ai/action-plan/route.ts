@@ -1,11 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { generateActionPlan } from "@/lib/gemini";
+import { generateActionPlan, normalizeVoiceTone } from "@/lib/gemini";
 import type { Emotion, StoredActionPlan } from "@/lib/supabase/types";
 
 const bodySchema = z.object({
   diaryId: z.string().uuid(),
+  voiceTone: z.union([z.literal(1), z.literal(2)]).optional(),
 });
 
 type ActionPlanDiary = {
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
   const { diaryId } = parsedBody.data;
+  const voiceTone = normalizeVoiceTone(parsedBody.data.voiceTone);
 
   const initialDiaryQuery = await supabase
     .from("diary_entries")
@@ -85,7 +87,7 @@ export async function POST(req: Request) {
     diaryContent: diary.content,
     emotion: diary.emotion,
     pastDiaries: (pastDiaries ?? []) as PastDiary[],
-  });
+  }, { voiceTone });
 
   const savedPlan: StoredActionPlan = {
     ...plan,

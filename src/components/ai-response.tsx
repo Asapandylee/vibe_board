@@ -6,6 +6,8 @@ import { X, Sparkles, Send, Loader2 } from "lucide-react";
 import type { DiaryEntry } from "@/lib/supabase/types";
 import { EMOTION_MAP } from "@/lib/supabase/types";
 import { MusicPlayer } from "./music-player";
+import { getVoiceToneFallbackMessage, type VoiceToneLevel } from "@/lib/voice-tone";
+import { VoiceToneToggle } from "./voice-tone-toggle";
 
 type ChatMessage = { role: "user" | "ai"; content: string };
 
@@ -22,6 +24,7 @@ export function AiResponse({ entry, onClose }: Props) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isChatStreaming, setIsChatStreaming] = useState(false);
+  const [voiceTone, setVoiceTone] = useState<VoiceToneLevel>(2);
 
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -36,7 +39,7 @@ export function AiResponse({ entry, onClose }: Props) {
         const res = await fetch("/api/ai/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ diaryId: entry.id }),
+          body: JSON.stringify({ diaryId: entry.id, voiceTone }),
           signal: controller.signal,
         });
 
@@ -52,7 +55,7 @@ export function AiResponse({ entry, onClose }: Props) {
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          setStreamedMessage("오늘 하루도 수고했어요. 일기를 쓰는 것만으로도 대단한 거예요. 💙");
+          setStreamedMessage(getVoiceToneFallbackMessage(voiceTone, "stream"));
         }
       } finally {
         setIsStreaming(false);
@@ -61,7 +64,7 @@ export function AiResponse({ entry, onClose }: Props) {
 
     startStream();
     return () => controller.abort();
-  }, [entry.id]);
+  }, [entry.id, voiceTone]);
 
   // 채팅 스크롤 자동 이동
   useEffect(() => {
@@ -89,6 +92,7 @@ export function AiResponse({ entry, onClose }: Props) {
           diaryId: entry.id,
           firstAiMessage: streamedMessage,
           messages: newMessages,
+          voiceTone,
         }),
       });
 
@@ -115,7 +119,7 @@ export function AiResponse({ entry, onClose }: Props) {
     } catch {
       setChatMessages((prev) => [
         ...prev,
-        { role: "ai", content: "죄송해요, 잠시 오류가 발생했어요." },
+        { role: "ai", content: getVoiceToneFallbackMessage(voiceTone, "chat") },
       ]);
     } finally {
       setIsChatStreaming(false);
@@ -211,7 +215,7 @@ export function AiResponse({ entry, onClose }: Props) {
 
         {/* 채팅 — 스트리밍 완료 후 표시 */}
         <AnimatePresence>
-          {!isStreaming && (
+              {!isStreaming && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -246,6 +250,12 @@ export function AiResponse({ entry, onClose }: Props) {
                   <div ref={chatEndRef} />
                 </div>
               )}
+
+              <VoiceToneToggle
+                value={voiceTone}
+                onChange={setVoiceTone}
+                disabled={isChatStreaming}
+              />
 
               {/* 채팅 입력 */}
               <div className="flex gap-2">

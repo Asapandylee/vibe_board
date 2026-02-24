@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { streamChatReply } from "@/lib/gemini";
+import { normalizeVoiceTone, streamChatReply } from "@/lib/gemini";
+import { getVoiceToneFallbackMessage } from "@/lib/voice-tone";
 import type { PastDiary } from "@/lib/gemini";
 import type { Emotion } from "@/lib/supabase/types";
 
@@ -8,7 +9,29 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
-  const { diaryId, firstAiMessage, messages } = await req.json();
+  const body = (await req.json().catch(() => null)) as
+    | {
+        diaryId?: unknown;
+        firstAiMessage?: unknown;
+        messages?: unknown;
+        voiceTone?: unknown;
+      }
+    | null;
+
+  const diaryId = typeof body?.diaryId === "string" ? body.diaryId : "";
+  const firstAiMessage = typeof body?.firstAiMessage === "string" ? body.firstAiMessage : "";
+  const voiceTone = normalizeVoiceTone(body?.voiceTone);
+  const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
+  const messages = rawMessages.filter(
+    (item): item is { role: "user" | "ai"; content: string } =>
+      typeof item === "object" &&
+      item !== null &&
+      (item as { role?: unknown }).role &&
+      ((item as { role?: unknown }).role === "user" ||
+        (item as { role?: unknown }).role === "ai") &&
+      typeof (item as { content?: unknown }).content === "string",
+  );
+
   if (!diaryId || !messages?.length) return new Response("Bad request", { status: 400 });
 
   const supabase = await createClient();
@@ -38,15 +61,16 @@ export async function POST(req: Request) {
         for await (const chunk of streamChatReply(
           diary.content,
           diary.emotion as Emotion | null,
-          firstAiMessage ?? "",
+          firstAiMessage,
           (pastDiaries ?? []) as PastDiary[],
           messages,
+          { voiceTone },
         )) {
           controller.enqueue(encoder.encode(chunk));
         }
       } catch (err) {
         console.error("Chat stream error:", err);
-        controller.enqueue(encoder.encode("죄송해요, 잠시 오류가 발생했어요."));
+        controller.enqueue(encoder.encode(getVoiceToneFallbackMessage(voiceTone, "chat")));
       } finally {
         controller.close();
       }

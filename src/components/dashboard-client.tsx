@@ -40,7 +40,7 @@ export function DashboardClient({ stats }: Props) {
       try {
         setIsLoadingInsights(true);
         setInsightError(null);
-        const res = await fetch("/api/ai/insights?range=30", {
+        const res = await fetch("/api/ai/insights?range=30&voiceTone=2", {
           method: "GET",
           cache: "no-store",
         });

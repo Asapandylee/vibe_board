@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { generateEmotionInsights } from "@/lib/gemini";
+import { generateEmotionInsights, normalizeVoiceTone } from "@/lib/gemini";
 import type { Emotion } from "@/lib/supabase/types";
 
 const rangeSchema = z.enum(["7", "30", "90"]).default("30");
@@ -22,6 +22,7 @@ export async function GET(req: Request) {
 
   const from = new Date();
   from.setDate(from.getDate() - rangeDays);
+  const voiceTone = normalizeVoiceTone(searchParams.get("voiceTone"));
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     rangeDays,
     diaries,
     byEmotion,
-  });
+  }, { voiceTone });
 
   return Response.json({
     rangeDays,
@@ -59,4 +60,3 @@ export async function GET(req: Request) {
     insights,
   });
 }
-
